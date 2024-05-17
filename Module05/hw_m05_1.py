@@ -1,5 +1,7 @@
 class THouse:
-    numberOfFloors = 10
+
+    def __init__(self):
+        self.numberOfFloors = 10
 
 
 my_house = THouse()

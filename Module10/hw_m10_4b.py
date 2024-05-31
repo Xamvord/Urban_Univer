@@ -2,8 +2,7 @@ import threading
 import queue
 import time
 import random
-from colorama import Fore, Style, init
-
+from colorama import Fore, Back, Style, init
 init(autoreset=True)
 
 class Table:
@@ -21,13 +20,14 @@ class Customer(threading.Thread):
 
     def run(self):
         print(Fore.YELLOW + f"Посетитель номер {self.customer_id} начал вкушать яства.")
-        time.sleep(random.randint(3, 7))
+        time.sleep(random.randint(3, 5))
         print(Fore.GREEN + f"Посетитель номер {self.customer_id} завершил трапезу и покинул ресторан.")
         self.restaurant.release_table(self.table)
 
 class Restaurant:
     def __init__(self, n_tables):
         self.queue = queue.Queue()
+        self.is_there_anyone_at_the_entrance = 0
         self.tables = [Table(i) for i in range(1, n_tables + 1)]
         self.tables_lock = threading.Lock()
         self.active_threads = []
@@ -35,9 +35,26 @@ class Restaurant:
     def customer_arrival(self):
         for customer_id in range(1, N_customers + 1):
             print(f"Посетитель номер {customer_id} прибыл.")
+            self.is_there_anyone_at_the_entrance = customer_id
+            time.sleep(random.uniform(0.3, 0.7))
+
+    def welcome_customer(self, customer_id):
+        with self.tables_lock:
+            table = None
+            for t in self.tables:
+                if not t.is_busy:
+                    table = t
+                    table.is_busy = True
+                    break
+        if table:
+            print(Fore.MAGENTA + Style.BRIGHT + f"Метрдотель: 'Я вас категорически приветствую! Прошу проследовать за столик номер {table.number}'")
+            customer = Customer(customer_id, self, table)
+            self.active_threads.append(customer)
+            customer.start()
+        else:
+            print(Fore.RED + f"Метрдотель: 'Я дико извиняюсь, но свободных столиков на данный момент нету, прошу вас немного подождать!'")
             self.queue.put(customer_id)
             self.show_queue()
-            time.sleep(random.uniform(0.3, 0.7))
 
     def show_queue(self):
         queue_list = list(self.queue.queue)
@@ -62,10 +79,15 @@ class Restaurant:
                         self.active_threads.append(customer)
                         customer.start()
                         self.show_queue()
+
+            if self.is_there_anyone_at_the_entrance > 0:
+                self.welcome_customer(self.is_there_anyone_at_the_entrance)
+                self.is_there_anyone_at_the_entrance = 0
+
             time.sleep(0.1)
 
 # Количество столиков в ресторане
-N_tables = 8
+N_tables = 5
 
 # Количество посетителей
 N_customers = 50
